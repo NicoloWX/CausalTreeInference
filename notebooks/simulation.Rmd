@@ -1,0 +1,114 @@
+---
+title: "dsc180a final project"
+output: pdf_document
+---
+```{r}
+library(dplyr)       # Data manipulation (0.8.0.1)
+library(fBasics)     # Summary statistics (3042.89)
+library(corrplot)    # Correlations (0.84)
+library(psych)       # Correlation p-values (1.8.12)
+library(grf)         # Generalized random forests (0.10.2)
+library(rpart)       # Classification and regression trees, or CART (4.1-13)
+library(rpart.plot)  # Plotting trees (3.0.6)
+library(treeClust)   # Predicting leaf position for causal trees (1.1-7)
+library(car)         # linear hypothesis testing for causal tree (3.0-2)
+library(remotes)    # Install packages from github (2.0.1)
+library(readr)       # Reading csv files (1.3.1)
+library(tidyr)       # Database operations (0.8.3)
+library(tibble)      # Modern alternative to data frames (2.1.1)
+library(knitr)       # RMarkdown (1.21)
+library(kableExtra)  # Prettier RMarkdown (1.0.1)
+library(ggplot2)     # general plotting tool (3.1.0)
+library(haven)       # read stata files (2.0.0)
+library(aod)         # hypothesis testing (1.3.1)
+library(evtree)      # evolutionary learning of globally optimal trees (1.0-7)
+library(estimatr)    # simple interface for OLS estimation w/ robust std errors ()
+library(causalTree)
+library(sufrep)
+```
+
+Data loading and train-test split
+```{r}
+data2=read.csv('data2.csv')
+
+
+
+train_fraction <- 1/9  # Use train_fraction % of the dataset to train our models
+n <- dim(data2)[1]
+train_idx <- sample.int(n, replace=F, size=floor(n*train_fraction))
+df_train <- data2[train_idx,]
+df_test <- data2[-train_idx,]
+
+split_size <- floor(nrow(df_train) * 0.5)
+split_idx <- sample(nrow(df_train), replace=FALSE, size=split_size)
+
+
+df_split <- df_train[split_idx,]
+df_est <- df_train[-split_idx,]
+```
+
+
+
+```{r}
+covariate_names=c('X1','X2')
+fmla_ct <- paste("factor(Y) ~", paste(c('X1','X2'), collapse = " + "))
+
+ct_unpruned <- honest.causalTree(
+  formula=fmla_ct,            # Define the model
+  data=df_split,              # Subset used to create tree structure
+  est_data=df_est,            # Which data set to use to estimate effects
+
+  treatment=df_split$W,       # Splitting sample treatment variable
+  est_treatment=df_est$W,     # Estimation sample treatment variable
+
+  split.Rule="CT",            # Define the splitting option
+  cv.option="CT",            # Cross validation options
+  cp=0,                       # Complexity parameter
+
+  split.Honest=FALSE,          # Use honesty when splitting
+  cv.Honest=FALSE,             # Use honesty when performing cross-validation
+  split.alpha =  1,
+
+  minsize=25,                 # Min. number of treatment and control cases in each leaf (increase to be 50?)
+  HonestSampleSize=nrow(df_est)) # Num obs used in estimation after building the tree
+
+```
+
+```{r}
+# Table of cross-validated values by tuning parameter.
+ct_cptable <- as.data.frame(ct_unpruned$cptable)
+
+# Obtain optimal complexity parameter to prune tree.
+selected_cp <- which.min(ct_cptable$xerror)
+optim_cp_ct <- ct_cptable[selected_cp, "CP"]
+
+# Prune the tree at optimal complexity parameter.
+ct_pruned <- prune(tree=ct_unpruned, cp=optim_cp_ct)
+```
+
+```{r}
+tauhat_ct_est <- predict(ct_pruned, newdata=df_est)
+```
+
+```{r}
+# Create a factor column 'leaf' indicating leaf assignment
+num_leaves <- length(unique(tauhat_ct_est))  # There are as many leaves as there are predictions
+df_est$leaf <- factor(tauhat_ct_est, labels = seq(num_leaves))
+
+# Run the regression
+#ols_ct <- lm_robust(Y ~ 0 + leaf + W:leaf, data=df_est)
+df_est[, -1] <- sapply(df_est[,-1], as.numeric)
+mean(df_est$leaf)
+```
+
+```{r}
+#mse_ct
+sum((predict(ct_pruned, newdata=df_test)-(df_test$y1-df_test$y0))^2)/8000
+
+```
+
+```{r}
+(sum((predict(ct_pruned, newdata=df_test)-(df_test$y1-df_test$y0))^2)/8000)
+# ct_2=1629.583
+```
+

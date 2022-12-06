@@ -1,0 +1,4 @@
+{
+    "dockerhub-id": "wenqianzhao/dsc180a",
+    "build-script": "Rscript run.R 1"
+}

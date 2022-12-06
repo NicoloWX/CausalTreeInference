@@ -1,1 +1,1 @@
-# dsc180a_finalProject
+# DSC180A-Methodology-2
