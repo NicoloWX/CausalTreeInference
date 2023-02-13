@@ -1,4 +1,4 @@
 {
-    "dockerhub-id": "wenqianzhao/dsc180a",
-    "build-script": "Rscript run.R 1"
+    "GitHub Repository": "https://github.com/NicoloWX/dsc180a_finalProject",
+    "DockerHub Repository": "https://hub.docker.com/r/wenqianzhao/dsc180a"
 }

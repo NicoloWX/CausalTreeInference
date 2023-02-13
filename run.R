@@ -1,5 +1,5 @@
 # set-up
-source("src/models/util_funcs.R")
+source("src/models/utils.R")
 args = commandArgs(trailingOnly=TRUE)
 dsgn = length(integer(args))
 nsim = 100
